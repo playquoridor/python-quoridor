@@ -1,20 +1,18 @@
-# import numpy as np
 from quoridor.square import *
 from quoridor.exceptions import *
 from quoridor.pawn import Pawn
-from collections import deque
 from quoridor.utils import BoolGrid
+from collections import deque
 
 
 class Board:
     def __init__(self):
         # Set up board
         self.board = [[Square(row, col) for col in range(MAX_COL)] for row in
-                      range(MAX_ROW)]  # for row in range(MAX_X - 1, -1, -1)]
+                      range(MAX_ROW)]
 
         # Place neighbours
-        for row in range(MAX_ROW):  # - 1, -1, -1):
-            # print(row, [col for col in range(MAX_Y)])
+        for row in range(MAX_ROW):
             for col in range(MAX_COL):
                 left_square = self.get_square_or_none(row, col - 1)
                 right_square = self.get_square_or_none(row, col + 1)
@@ -30,8 +28,10 @@ class Board:
         self.fence_center_grid = BoolGrid(MAX_ROW, MAX_COL)
 
         # Initialise pawns
-        self.pawns = {'white': Pawn(square=self[(WHITE_INIT_ROW, WHITE_INIT_COL)], color='white'),  # WHITE_INIT_ROW, WHITE_INIT_COL
-                      'black': Pawn(square=self[(BLACK_INIT_ROW, BLACK_INIT_COL)], color='black')}  # BLACK_INIT_ROW, BLACK_INIT_COL
+        self.pawns = {'white': Pawn(square=self[(WHITE_INIT_ROW, WHITE_INIT_COL)], color='white'),
+                      # WHITE_INIT_ROW, WHITE_INIT_COL
+                      'black': Pawn(square=self[(BLACK_INIT_ROW, BLACK_INIT_COL)],
+                                    color='black')}  # BLACK_INIT_ROW, BLACK_INIT_COL
 
         # Update possible moves based on initial pawn positions
         self.update_neighbours(self.black_pawn.square)
