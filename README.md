@@ -8,8 +8,8 @@ TODO
 
 ## Usage
 ```python
-from board import Board
-from utils import print_board
+from quoridor.board import Board
+from quoridor.utils import print_board
 
 board = Board()
 
