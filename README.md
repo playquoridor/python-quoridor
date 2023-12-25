@@ -54,5 +54,5 @@ print_board(board)
 
 The logic raises exceptions for:
 * Invalid pawn moves, including out-of-board and illegal jumping events (`exceptions.InvalidMove`)
-* Invalid fence placements, including out-of-board and overlapping fences (`exceptions.InvalidFence`)
+* Invalid fence placements, including out-of-board fences, overlapping fences, and fences that block unique pawn paths (`exceptions.InvalidFence`)
 * Moves after game is over (`exceptions.GameOver`)
