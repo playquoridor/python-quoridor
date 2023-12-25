@@ -1,7 +1,7 @@
 import unittest
-from quoridor.utils import print_board
-from quoridor.exceptions import *
-from quoridor.board_setups import *
+from pyquoridor.utils import print_board
+from pyquoridor.board_setups import *
+from pyquoridor.exceptions import *
 
 
 class BoardIntegrity(unittest.TestCase):

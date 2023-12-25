@@ -8,12 +8,12 @@ pip install pyquoridor
 
 ## Usage
 ```python
-from quoridor.board import Board
-from quoridor.utils import print_board
+from pyquoridor import Board
+from pyquoridor import print_board
 
 board = Board()
 
-# Place fences
+# Place fences
 board.place_fence(row=0, col=0, orientation='h')
 board.place_fence(row=7, col=0, orientation='h')
 board.place_fence(row=3, col=2, orientation='v')

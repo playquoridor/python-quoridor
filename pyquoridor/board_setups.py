@@ -1,4 +1,4 @@
-from quoridor.board import Board
+from pyquoridor.board import Board
 
 
 def board_setup1():

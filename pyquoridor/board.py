@@ -1,7 +1,7 @@
-from quoridor.square import *
-from quoridor.exceptions import *
-from quoridor.pawn import Pawn
-from quoridor.utils import BoolGrid
+from pyquoridor.pawn import Pawn
+from pyquoridor.utils import BoolGrid
+from pyquoridor.square import *
+from pyquoridor.exceptions import *
 from collections import deque
 
 

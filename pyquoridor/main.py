@@ -1,5 +1,5 @@
-from quoridor.board import Board
-from quoridor.utils import print_board
+from pyquoridor.board import Board
+from pyquoridor.utils import print_board
 
 
 # Press the green button in the gutter to run the script.

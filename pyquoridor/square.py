@@ -1,5 +1,5 @@
-from quoridor.exceptions import InvalidSquare
-from quoridor.utils import coord2str
+from pyquoridor.exceptions import InvalidSquare
+from pyquoridor.utils import coord2str
 
 # Square constants
 MIN_ROW = 0
