@@ -8,8 +8,8 @@ pip install pyquoridor
 
 ## Usage
 ```python
-from pyquoridor import Board
-from pyquoridor import print_board
+from pyquoridor.board import Board
+from pyquoridor.utils import print_board
 
 board = Board()
 
