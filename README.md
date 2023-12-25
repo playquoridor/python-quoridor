@@ -3,7 +3,7 @@
 ## Install
 
 ```
-TODO
+pip install pyquoridor
 ```
 
 ## Usage
