@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class BoolGrid:
+class Grid:
     def __init__(self, max_x, max_y, init_value=False):
         self.max_x = max_x
         self.max_y = max_y
@@ -32,10 +32,7 @@ def coord2str(row, col):
     return f'{col_char}{row}'
 
 
-def print_board(board, player_path_check=None):
-    if player_path_check is not None:
-        path_exists = board.BFS_all(player_path_check)
-
+def print_board(board):
     nx = len(board.board)
     ny = len(board.board)
     for y in range(ny - 1, -1, -1):
@@ -52,36 +49,30 @@ def print_board(board, player_path_check=None):
                 row_fence_str += ' '
 
             if board.horizontal_fence_grid[(y, x)]:  # down_fence is None:
-                row_fence_str += '---'
+                row_fence_str += ' — ' # '---'
             else:
-                row_fence_str += '···'
+                row_fence_str += '   '
 
             # Vertical fences
             # right_fence = square.get_fence('right')
             if board.vertical_fence_grid[(y, x)]:
                 right_str = '|'
             else:
-                right_str = ':'
+                right_str = ' '
 
             # print(':   ' * nx + ':')
             path_check = ' '
-            if player_path_check is not None:
-                if path_exists[(y, x)]:
-                    # content = ' + '
-                    path_check = '+'
-                else:
-                    # content = ' - '
-                    path_check = '-'
             content = f' {path_check} '
             if board[y, x].is_busy():
                 pawn_color = board[y, x].pawn.color
                 content = f'{path_check}{pawn_color[0]} '
             row_str += f'{content}{right_str}'
-        print(row_fence_str)
+        if y == ny - 1:
+            print('  ' + ' ···' * nx)
+        else:
+            print(row_fence_str)
         # print('  ' + ' ···' * nx)
-        print(row_str)
+        print(row_str + ':')
         # Fence: print('|   ' * nx + '|')
     print('  ' + ' ···' * nx)
     print('  ' + ''.join([f'  {i} ' for i in range(nx)]))
-
-# def print_board_path_check(board, player):

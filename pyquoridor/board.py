@@ -1,19 +1,25 @@
 from pyquoridor.pawn import Pawn
-from pyquoridor.utils import BoolGrid
+from pyquoridor.utils import Grid
 from pyquoridor.square import *
 from pyquoridor.exceptions import *
 from collections import deque
 
+MAX_FENCES = 10
 
 class Board:
-    def __init__(self):
+    def __init__(self, max_row=MAX_ROW, max_col=MAX_COL, max_fences=MAX_FENCES,
+                 white_init_row=WHITE_INIT_ROW, white_init_col=WHITE_INIT_COL,
+                 black_init_row=BLACK_INIT_ROW, black_init_col=BLACK_INIT_COL):
+        self.max_row = max_row
+        self.max_col = max_col
+
         # Set up board
-        self.board = [[Square(row, col) for col in range(MAX_COL)] for row in
-                      range(MAX_ROW)]
+        self.board = [[Square(row, col) for col in range(max_col)] for row in
+                      range(max_row)]
 
         # Place neighbours
-        for row in range(MAX_ROW):
-            for col in range(MAX_COL):
+        for row in range(max_row):
+            for col in range(max_col):
                 left_square = self.get_square_or_none(row, col - 1)
                 right_square = self.get_square_or_none(row, col + 1)
                 up_square = self.get_square_or_none(row + 1, col)
@@ -23,15 +29,16 @@ class Board:
                 self[(row, col)].add_neighbours(neighbours)
 
         # Initialise fences. These are utilised to check whether fences exist
-        self.horizontal_fence_grid = BoolGrid(MAX_ROW, MAX_COL)
-        self.vertical_fence_grid = BoolGrid(MAX_ROW, MAX_COL)
-        self.fence_center_grid = BoolGrid(MAX_ROW, MAX_COL)
+        self.horizontal_fence_grid = Grid(max_row, max_col)
+        self.vertical_fence_grid = Grid(max_row, max_col)
+        self.fence_center_grid = Grid(max_row, max_col)
 
         # Initialise pawns
-        self.pawns = {'white': Pawn(square=self[(WHITE_INIT_ROW, WHITE_INIT_COL)], color='white'),
-                      # WHITE_INIT_ROW, WHITE_INIT_COL
-                      'black': Pawn(square=self[(BLACK_INIT_ROW, BLACK_INIT_COL)],
-                                    color='black')}  # BLACK_INIT_ROW, BLACK_INIT_COL
+        self.pawns = {'white': Pawn(square=self[(white_init_row, white_init_col)], color='white'),
+                      'black': Pawn(square=self[(black_init_row, black_init_col)], color='black')}  # BLACK_INIT_ROW, BLACK_INIT_COL
+        self.player_colors = ['white', 'black']
+        self.turn = 0
+        self.fences_left = {'white': max_fences, 'black': max_fences}
 
         # Update possible moves based on initial pawn positions
         self.update_neighbours(self.black_pawn.square)
@@ -40,7 +47,7 @@ class Board:
         # Initialise grids indicating whether there is a path for every player
         self.path_exists = {}
         for player in self.pawns.keys():
-            self.path_exists[player] = BoolGrid(MAX_ROW, MAX_COL, init_value=True)
+            self.path_exists[player] = Grid(max_row, max_col, init_value=True)
 
     @property
     def white_pawn(self):
@@ -96,6 +103,41 @@ class Board:
         fen = f'{"".join(sorted(horizontal_fences))}/{"".join(sorted(vertical_fences))}/{pawn_positions}'
         return fen
 
+    def FEN(self):
+        """
+        Format: [1] / [2] / [3.1] [3.2] [3.3*] [3.4*] / [4.1] [4.2] [4.3*] [4.4*] / [5]
+        1. Horizontal wall positions
+        2. Vertical wall positions
+        3. Pawn positions:
+            3.1 Player 1 pawn position
+            3.2 Player 2 pawn position
+            3.3 Player 3 pawn position* (not included here)
+            3.4 Player 4 pawn position* (not included here)
+        4. Walls available:
+            4.1 player 1 walls available
+            4.2 player 2 walls available
+            4.3 player 3 walls available* (not included here)
+            4.4 player 4 walls available* (not included here)
+        5. Active player
+        * Four player only.
+        """
+        # Walls
+        vertical_fences = sorted(self.vertical_fence_grid.argwhere_str())
+        horizontal_fences = sorted(self.horizontal_fence_grid.argwhere_str(), key=lambda x: x[1])
+        # Remove even positions in lists -- only first coordinate is used in the FEN
+        del vertical_fences[1::2]
+        del horizontal_fences[1::2]
+
+        # Pawn positions and walls available
+        white_position = self.pawns['white'].square.square2str()
+        black_position = self.pawns['black'].square.square2str()
+        pawn_positions = white_position + black_position
+        walls_available = f'{self.fences_left["white"]} {self.fences_left["black"]}'
+
+        # Construct FEN
+        fen = f'{"".join(sorted(horizontal_fences))}/{"".join(sorted(vertical_fences))}/{pawn_positions}/{walls_available}/{self.turn % 2 + 1}'
+        return fen
+
     def from_FEN(self, FEN):
         raise NotImplementedError('From FEN not implemented')
 
@@ -114,8 +156,8 @@ class Board:
             square = None
         return square
 
-    def legal_moves(self):
-        raise NotImplementedError()
+    def current_player(self):
+        return self.player_colors[self.turn % 2]
 
     def fence_exists(self, row, col, orientation):
         if orientation == 'v':
@@ -228,59 +270,35 @@ class Board:
         for _, pawn in self.pawns.items():
             self.update_neighbours(pawn.square)
 
-    def BFS_all(self, player):
-        """
-        Breadth-first search from end squares to all squares in the board.
-        """
-        path_exists = BoolGrid(MAX_ROW, MAX_COL, init_value=False)
-        visited_squares = BoolGrid(MAX_ROW, MAX_COL, init_value=False)
-        square_queue = deque()
-
-        # Set end row according to player
-        end_row = 0
-        if player == 'white':
-            end_row = MAX_ROW - 1
-
-        # Initialise paths, visited squares and queue
-        for i in range(MAX_COL):
-            path_exists[(end_row, i)] = True
-            visited_squares[(end_row, i)] = True
-            square_queue.append(self[(end_row, i)])
-
-        # Keep popping neighbours until the queue is empty. All remaining unvisited squares have no path to the goal
-        while len(square_queue) != 0:
-            square = square_queue.popleft()
-            for neighbour in square.neighbours_iter():
-                row = neighbour.row
-                col = neighbour.col
-                if not visited_squares[(row, col)]:
-                    path_exists[(row, col)] = True
-                    square_queue.append(neighbour)
-                    visited_squares[(row, col)] = True
-
-        return path_exists
-
-    def BFS_player(self, player):
+    def BFS_player(self, player, init_square=None, max_depth=None):
         """
         Breadth-first search from player pawn square.
         """
-        visited_squares = BoolGrid(MAX_ROW, MAX_COL, init_value=False)
-        square_queue = deque()
-
         # Set end row according to player
         end_row = 0
         if player == 'white':
             end_row = MAX_ROW - 1
 
         # Initialise paths, visited squares and queue
-        pawn_square = self.pawns[player].square
-        visited_squares[(pawn_square.row, pawn_square.col)] = True
-        square_queue.append(pawn_square)
+        if init_square is None:
+            init_square = self.pawns[player].square
+        if init_square.row == end_row:
+            return True, 0
+        
+        visited_squares = Grid(MAX_ROW, MAX_COL, init_value=False)
+        square_queue = deque()
+        visited_squares[(init_square.row, init_square.col)] = True
+        square_queue.append((init_square, 1))  # Square, path length
 
         # Keep popping neighbours until the queue is empty. All remaining unvisited squares have no path to the goal
         can_reach = False
+        L = -1
         while len(square_queue) != 0 and not can_reach:
-            square = square_queue.popleft()
+            square, L = square_queue.popleft()
+            if max_depth is not None and L > max_depth:
+                can_reach = False
+                L = -1
+                break
             for neighbour in square.neighbours_iter():
                 row = neighbour.row
                 col = neighbour.col
@@ -288,18 +306,15 @@ class Board:
                     can_reach = True
                     break
                 if not visited_squares[(row, col)]:
-                    square_queue.append(neighbour)
+                    square_queue.append((neighbour, L+1))
                     visited_squares[(row, col)] = True
 
-        return can_reach
+        return can_reach, L
 
-    def place_fence(self, row, col, orientation, check_winner=True, run_BFS=True):
+    def try_place_fence(self, row, col, orientation, run_BFS=True, remove=True):
         """
-        Places a fence or raises InvalidFence exception if the fence is invalid.
+        Tries to place a fence and raises InvalidFence exception if the fence is invalid.
         """
-        if check_winner:
-            self.check_winner()
-
         # Check if neighbouring squares are valid
         try:
             squares = [self[row, col],
@@ -319,9 +334,11 @@ class Board:
 
         # Check that path exists for all pawns
         valid_fence = True
+        Ls = {}
         if run_BFS:  # In some cases where BFS has been ran in another process, we don't want to repeat
             for player in self.pawns.keys():
-                valid_fence = self.BFS_player(player)
+                valid_fence, L = self.BFS_player(player)
+                Ls[player] = L
                 if not valid_fence:
                     break
 
@@ -329,6 +346,28 @@ class Board:
         if not valid_fence:
             self._place_or_remove_fence(row, col, orientation, place=False)
             raise InvalidFence(f'Invalid fence ({row}, {col}): Fence blocks {player} pawn path')
+        if remove:
+            self._place_or_remove_fence(row, col, orientation, place=False)
+        
+        return Ls # Return the length of the path after placing the fence
+
+    def place_fence(self, row, col, orientation, check_winner=True, check_update_fences=True, run_BFS=True):
+        """
+        Places a fence or raises InvalidFence exception if the fence is invalid.
+        """
+        if check_winner:
+            self.check_winner()
+        player = self.current_player()
+        if check_update_fences and self.fences_left[player] == 0:
+            raise InvalidFence(f'Invalid fence ({row}, {col}): No fences left for player {player}')
+
+        # Check if fence position is valid
+        self.try_place_fence(row, col, orientation, run_BFS=run_BFS, remove=False)
+        
+        # Fence placement successful, increase turn and decrease fences
+        self.turn += 1
+        if check_update_fences and player is not None:
+            self.fences_left[player] -= 1
 
     def _add_diagonal_skip_neighbours(self, square, next_square, orientation='h'):
         """
@@ -385,10 +424,12 @@ class Board:
                                                        orientation='v')
         return occupied_squares
 
-    def move_pawn(self, player, target_row, target_col, check_winner=True):
+    def move_pawn(self, player, target_row, target_col, check_winner=True, check_player=True):
         """
         Moves a pawn or raises InvalidMove exception if the move is invalid.
         """
+        if check_player and self.current_player() != player:
+            raise InvalidMove(f'Invalid move: Not player {player} turn')
         if check_winner:
             self.check_winner()
 
@@ -415,8 +456,30 @@ class Board:
         # Update neighbours of all pawns
         for pawn in self.pawns.values():
             self.update_neighbours(pawn.square)
+        
+        # Move successful, increase turn
+        self.turn += 1
 
-    def valid_pawn_moves(self, player, check_winner=True):
+    def legal_moves(self, player=None):
+        """
+        Returns a list of legal moves for the active player.
+        """
+        if player is None:
+            player = self.current_player()
+        
+        valid_pawn_moves = {}
+        for color in self.pawns.keys():
+            valid_pawn_moves[color] = self.valid_pawn_moves(color, path_lengths=True)
+        valid_fence_moves = self.valid_fence_moves(player)
+        return valid_pawn_moves, valid_fence_moves
+    
+    def player_finish_within_moves(self, player, n):
+        """
+        Check if player can finish in n moves.
+        """
+        return self.BFS_player(player, max_depth=n)[0]
+
+    def valid_pawn_moves(self, player, check_winner=True, path_lengths=False):
         """
         Returns a list of valid move squares of a pawn.
         """
@@ -424,5 +487,53 @@ class Board:
             self.check_winner()
 
         pawn = self.pawns[player]
+
         # return pawn.square.neighbours
-        return {s for s in pawn.square.neighbours if not s.has_pawn()}
+        return {s: self.BFS_player(player, init_square=s)[1] if path_lengths else 1
+                for s in pawn.square.neighbours if not s.has_pawn()}
+
+    def valid_fence_moves(self, player, check_winner=True):
+        """
+        Returns 2 grids (vertical, horizontal) of valid fences for a player.
+        """
+        # TODO: Can the efficiency be improved?
+        if check_winner:
+            self.check_winner()
+
+        player = self.current_player()
+        horizontal_fence_grids = {}
+        vertical_fence_grids = {}
+        for color in self.pawns.keys():
+            horizontal_fence_grids[color] = Grid(MAX_ROW, MAX_COL, init_value=-1)
+            vertical_fence_grids[color] = Grid(MAX_ROW, MAX_COL, init_value=-1)
+        if self.fences_left[player] == 0:
+            return horizontal_fence_grids, vertical_fence_grids
+
+        # Check all possible fence positions. Check if fence can be played:
+        # 1. No fence already placed
+        # 2. No fence overlap
+        # 3. No fence blocking any pawn path
+        for row in range(MAX_ROW):
+            for col in range(MAX_COL):
+                for orientation in ['h', 'v']:
+                    try:
+                        Ls = self.try_place_fence(row, col, orientation, run_BFS=True, remove=True)
+                        for color in self.pawns.keys():
+                            if orientation == 'h':
+                                horizontal_fence_grids[color][(row, col)] = Ls[color]
+                            else:
+                                vertical_fence_grids[color][(row, col)] = Ls[color]
+                    except InvalidFence:
+                        pass
+        return horizontal_fence_grids, vertical_fence_grids
+    
+    def state(self):
+        return {
+            'fences_left': self.fences_left,
+            'turn': self.turn,
+            'white_position': self.white_pawn.square,
+            'black_position': self.black_pawn.square,
+            'horizontal_fence_grid': self.horizontal_fence_grid,
+            'vertical_fence_grid': self.vertical_fence_grid,
+            'fence_center_grid': self.fence_center_grid
+        }
