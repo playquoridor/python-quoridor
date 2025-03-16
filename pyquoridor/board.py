@@ -258,8 +258,8 @@ class Board:
                 self._pawn_conditional_remove_neighbours(row - 1, col + 1, row, col, row - 1, col)
                 self._pawn_conditional_remove_neighbours(row + 1, col, row + 2, col + 1, row + 2, col)
                 self._pawn_conditional_remove_neighbours(row + 1, col + 1, row + 2, col, row + 2, col + 1)
-                self._add_or_remove_neighbours(row + 1, col, row, col + 1, add=not place)
-                self._add_or_remove_neighbours(row, col, row + 1, col + 1, add=not place)
+                self._add_or_remove_neighbours(row + 1, col, row, col + 1, add=False)
+                self._add_or_remove_neighbours(row, col, row + 1, col + 1, add=False)
 
             # Place fence
             self.vertical_fence_grid[(row, col)] = place
@@ -330,6 +330,7 @@ class Board:
             raise InvalidFence(f'Invalid fence ({row}, {col}): Fence overlap')
 
         # Place fence temporarily
+        # neighbours = [s.neighbours for s in squares]
         self._place_or_remove_fence(row, col, orientation, place=True)
 
         # Check that path exists for all pawns
@@ -348,7 +349,7 @@ class Board:
             raise InvalidFence(f'Invalid fence ({row}, {col}): Fence blocks {player} pawn path')
         if remove:
             self._place_or_remove_fence(row, col, orientation, place=False)
-        
+
         return Ls # Return the length of the path after placing the fence
 
     def place_fence(self, row, col, orientation, check_winner=True, check_update_fences=True, run_BFS=True):
@@ -369,7 +370,7 @@ class Board:
         if check_update_fences and player is not None:
             self.fences_left[player] -= 1
 
-    def _add_diagonal_skip_neighbours(self, square, next_square, orientation='h'):
+    def _add_remove_diagonal_skip_neighbours(self, square, next_square, orientation='h', add=True):
         """
         When straight skip connection is not possible, adds skip diagonal connections (neighbours of square)
         to next_square
@@ -388,9 +389,9 @@ class Board:
             neighbour_1 = self.get_square_or_none(row + diff_row, col + diff_col)
             neighbour_2 = self.get_square_or_none(row - diff_row, col - diff_col)
             if neighbour_1 is not None and square.has_neighbour(neighbour_1):
-                next_square.add_neighbours(neighbour_1)
+                next_square.add_or_remove_neighbours(neighbour_1, add=add)
             if neighbour_2 is not None and square.has_neighbour(neighbour_2):
-                next_square.add_neighbours(neighbour_2)
+                next_square.add_or_remove_neighbours(neighbour_2, add=add)
 
     def update_neighbours(self, target_square):
         """
@@ -415,13 +416,28 @@ class Board:
                 if next_square is not None and square.has_neighbour(next_square):
                     target_square.add_neighbours(next_square)
                     # square.add_neighbours(source_square)
+                    
+                    # Remove diagonal neighbours
+                    if diff_row > 0:
+                        self._add_remove_diagonal_skip_neighbours(square=square,
+                                                        next_square=target_square,
+                                                        orientation='h',
+                                                        add=False)
+                    else:
+                        self._add_remove_diagonal_skip_neighbours(square=square,
+                                                        next_square=target_square,
+                                                        orientation='v',
+                                                        add=False)
+
                 else:  # Fence behind the pawn. Get two other neighbours
-                    self._add_diagonal_skip_neighbours(square=square,
+                    self._add_remove_diagonal_skip_neighbours(square=square,
                                                        next_square=target_square,
-                                                       orientation='h')
-                    self._add_diagonal_skip_neighbours(square=square,
+                                                       orientation='h',
+                                                       add=True)
+                    self._add_remove_diagonal_skip_neighbours(square=square,
                                                        next_square=target_square,
-                                                       orientation='v')
+                                                       orientation='v',
+                                                       add=True)
         return occupied_squares
 
     def move_pawn(self, player, target_row, target_col, check_winner=True, check_player=True):
@@ -470,6 +486,7 @@ class Board:
         valid_pawn_moves = {}
         for color in self.pawns.keys():
             valid_pawn_moves[color] = self.valid_pawn_moves(color, path_lengths=True)
+        
         valid_fence_moves = self.valid_fence_moves(player)
         return valid_pawn_moves, valid_fence_moves
     
