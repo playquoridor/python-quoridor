@@ -418,7 +418,7 @@ class Board:
                     # square.add_neighbours(source_square)
                     
                     # Remove diagonal neighbours
-                    if diff_row > 0:
+                    if abs(diff_row) > 0:  # Horizontal jump
                         self._add_remove_diagonal_skip_neighbours(square=square,
                                                         next_square=target_square,
                                                         orientation='h',
